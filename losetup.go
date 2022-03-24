@@ -51,7 +51,7 @@ func GetFree() (Device, error) {
 	}
 	defer ctrl.Close()
 	dev, _, errno := unix.Syscall(unix.SYS_IOCTL, ctrl.Fd(), CtlGetFree, 0)
-	if dev < 0 {
+	if errno != 0 {
 		return Device{}, fmt.Errorf("could not get free device (err: %d): %w", errno, errno)
 	}
 	return Device{number: uint64(dev), flags: os.O_RDWR}, nil
