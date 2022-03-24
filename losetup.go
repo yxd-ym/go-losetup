@@ -1,10 +1,15 @@
 package losetup
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
 	"golang.org/x/sys/unix"
+)
+
+const (
+	O_DIRECT = 0x4000 // This is from syscall/zerrors_linux_amd64.go
 )
 
 // Add will add a loopback device if it does not exist already.
@@ -67,9 +72,16 @@ func Attach(backingFile string, offset uint64, ro bool) (Device, error) {
 		flags = os.O_RDONLY
 	}
 
-	back, err := os.OpenFile(backingFile, flags, 0660)
-	if err != nil {
+	flagsWithDIO := flags | O_DIRECT
+	back, err := os.OpenFile(backingFile, flagsWithDIO, 0660)
+	if err != nil && !errors.Is(err, os.ErrInvalid) {
 		return dev, fmt.Errorf("could not open backing file: %w", err)
+	}
+	if err != nil {
+		back, err = os.OpenFile(backingFile, flags, 0660)
+		if err != nil {
+			return dev, fmt.Errorf("could not open backing file: %w", err)
+		}
 	}
 	defer back.Close()
 
