@@ -3,7 +3,6 @@ package losetup
 import (
 	"fmt"
 	"os"
-	"syscall"
 
 	"golang.org/x/sys/unix"
 )
@@ -95,7 +94,7 @@ func Attach(backingFile string, offset uint64, ro bool) (Device, error) {
 			unix.Syscall(unix.SYS_IOCTL, loopFile.Fd(), ClrFd, 0)
 			return dev, fmt.Errorf("could not set info: %w", err)
 		}
-		if errno := setDIO(loopFile.Fd()); errno != 0 {
+		if err := setDIO(loopFile.Fd()); err != nil {
 			unix.Syscall(unix.SYS_IOCTL, loopFile.Fd(), ClrFd, 0)
 			return dev, fmt.Errorf("could not set direct IO: %w", err)
 		}
@@ -106,7 +105,7 @@ func Attach(backingFile string, offset uint64, ro bool) (Device, error) {
 	}
 }
 
-func setDIO(fd uintptr) syscall.Errno {
+func setDIO(fd uintptr) error {
 	_, _, err := unix.Syscall(unix.SYS_IOCTL, fd, SetDirectIO, 1)
 	return err
 }
