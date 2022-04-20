@@ -94,11 +94,7 @@ func Attach(backingFile string, offset uint64, ro bool) (Device, error) {
 			unix.Syscall(unix.SYS_IOCTL, loopFile.Fd(), ClrFd, 0)
 			return dev, fmt.Errorf("could not set info: %w", err)
 		}
-		if err := setDIO(loopFile.Fd()); err != nil {
-			unix.Syscall(unix.SYS_IOCTL, loopFile.Fd(), ClrFd, 0)
-			return dev, fmt.Errorf("could not set direct IO: %w", err)
-		}
-
+		setDIO(loopFile.Fd())
 		return dev, nil
 	} else {
 		return dev, errno
