@@ -1,15 +1,11 @@
 package losetup
 
 import (
-	"errors"
 	"fmt"
 	"os"
+	"syscall"
 
 	"golang.org/x/sys/unix"
-)
-
-const (
-	O_DIRECT = 0x4000 // This is from syscall/zerrors_linux_amd64.go
 )
 
 // Add will add a loopback device if it does not exist already.
@@ -72,16 +68,9 @@ func Attach(backingFile string, offset uint64, ro bool) (Device, error) {
 		flags = os.O_RDONLY
 	}
 
-	flagsWithDIO := flags | O_DIRECT
-	back, err := os.OpenFile(backingFile, flagsWithDIO, 0660)
-	if err != nil && !errors.Is(err, os.ErrInvalid) {
-		return dev, fmt.Errorf("could not open backing file: %w", err)
-	}
+	back, err := os.OpenFile(backingFile, flags, 0660)
 	if err != nil {
-		back, err = os.OpenFile(backingFile, flags, 0660)
-		if err != nil {
-			return dev, fmt.Errorf("could not open backing file: %w", err)
-		}
+		return dev, fmt.Errorf("could not open backing file: %w", err)
 	}
 	defer back.Close()
 
@@ -106,10 +95,20 @@ func Attach(backingFile string, offset uint64, ro bool) (Device, error) {
 			unix.Syscall(unix.SYS_IOCTL, loopFile.Fd(), ClrFd, 0)
 			return dev, fmt.Errorf("could not set info: %w", err)
 		}
+		if errno := setDIO(loopFile.Fd()); errno != 0 {
+			unix.Syscall(unix.SYS_IOCTL, loopFile.Fd(), ClrFd, 0)
+			return dev, fmt.Errorf("could not set direct IO: %w", err)
+		}
+
 		return dev, nil
 	} else {
 		return dev, errno
 	}
+}
+
+func setDIO(fd uintptr) syscall.Errno {
+	_, _, err := unix.Syscall(unix.SYS_IOCTL, fd, SetDirectIO, 1)
+	return err
 }
 
 // Detach removes the file backing the device.
