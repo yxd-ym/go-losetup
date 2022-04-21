@@ -101,6 +101,10 @@ func Attach(backingFile string, offset uint64, ro bool) (*Device, error) {
 
 func setDIO(fd uintptr) error {
 	_, _, err := unix.Syscall(unix.SYS_IOCTL, fd, SetDirectIO, 1)
+	if err == 0 {
+		return nil
+	}
+
 	return err
 }
 
